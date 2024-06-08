@@ -1,0 +1,232 @@
+---
+title: "Finding Cutoff For Ovarian Cancer Using ROC"
+author: "Yuning Hu"
+date: "2023-11-13"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(pROC)
+library(plotROC)
+library(tidyverse)
+library(patchwork)
+library(viridisLite)
+library(RColorBrewer)
+```
+
+### Glance of data:
+
+Data is from the `OC_Marker.csv` available at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9394434/.
+
+```{r load, echo=FALSE}
+data <- read_csv("OC_Marker.csv", show_col_types = FALSE)
+data <- data %>% select(-last_col())
+names(data)
+data$Menopause = as.factor(data$Menopause)
+data$TYPE = as.factor(data$TYPE)
+```
+
+CA19-9: most commonly used for ovarian cancer.
+
+CA72-4: most commonly used for gastric cancer.
+
+AFP: most commonly used for liver, ovary or testicle cancer.
+
+CA125: related to ovarian cancer.
+
+HE4: recently discovered, most commonly used for epithelial ovarian cancer.
+
+CEA: related to cancer.
+
+TYPE: indicate whether the patient have ovarian cancer.
+
+```{r load2, echo=FALSE}
+summary(data)
+```
+
+Number of patients who have / not have ovarian cancer.
+
+```{r load3, echo=FALSE}
+sum(data$TYPE == 1)
+sum(data$TYPE == 0)
+```
+
+Age distribution by diagnosis in this dataset:
+
+```{r,  echo=FALSE}
+data %>% ggplot(aes(x = Age)) +
+  geom_histogram(alpha = 0.7, col="black", binwidth = 2) + theme_classic() + facet_grid(.~TYPE) + labs(title = "Age distrubution by OC diagnosis (hist)")
+
+data %>% ggplot(aes(x = Age)) +
+  geom_boxplot(alpha = 0.7, col="black") + theme_classic() + coord_flip() + facet_grid(.~TYPE) + labs(title = "Age distrubution by OC diagnosis (box)")
+```
+
+We cannot see a clear relationship between age and ovarian cancer. Younger people (who are not likely to encounter a menopause) may also have ovarian cancer.
+
+### Visualize the predictors' sensitivity and specificity by ROC:
+
+ROC curve for CA19-9:
+```{r,  echo=FALSE}
+roc19_9 = roc(data$TYPE, data$`CA19-9`, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(roc19_9, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88,  main="ROC for CA19-9")
+```
+
+
+ROC curve for CA72-4:
+```{r,  echo=FALSE}
+roc72_4 = roc(data$TYPE, data$`CA72-4`, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(roc72_4, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88, main="ROC for CA72-4")
+```
+
+ROC curve for AFP:
+```{r,  echo=FALSE}
+rocafp = roc(data$TYPE, data$AFP, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(rocafp, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88, main="ROC for AFP")
+```
+
+ROC curve for CA125:
+```{r,  echo=FALSE}
+roc125 = roc(data$TYPE, data$CA125, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(roc125, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88, main = "ROC for CA125")
+```
+
+ROC curve for HE4:
+```{r,  echo=FALSE}
+roche4 = roc(data$TYPE, data$`HE4`, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(roche4, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88, main = "ROC for HE4")
+```
+
+ROC curve for CEA:
+```{r,  echo=FALSE}
+roccea = roc(data$TYPE, data$CEA, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(roccea, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88, main = "ROC for CEA")
+```
+
+
+### Comparing ROC curves with ROC of HE4:
+
+```{r,  echo=FALSE}
+roc_list = list(roc19_9, roc72_4, rocafp, roc125, roche4, roccea)
+
+plot(roc_list[[1]], col = "#56B4E9", main = "ROC curves for OC", auc.polygon=TRUE, max.auc.polygon=TRUE, auc.polygon.col="white", max.auc.polygon.col="white", grid=c(0.1, 0.2), grid.col=c("green", "red"))
+
+color_sel = c("#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+for (i in 2:length(roc_list)) {
+  lines(roc_list[[i]], col = color_sel[i])
+}
+
+legend("bottomright", legend = c("CA 19-9", "CA 72-4", "AFP","CA 125", "HE4", "CEA"), fill = color_sel)
+
+```
+
+We can see that HE4 has the best AUC, implying it is on average the best predictor of ovarian cancer.
+
+
+### Comparing the AUCs with the delong method:
+(checking if HE4 is obviously better than others)
+
+```{r compare, echo = FALSE}
+roc.test(roche4, roc19_9, paired=TRUE, method="delong")
+roc.test(roche4, roc72_4, paired=TRUE, method="delong")
+roc.test(roche4, rocafp, paired=TRUE, method="delong")
+roc.test(roche4, roc125, paired=TRUE, method="delong")
+roc.test(roche4, roccea, paired=TRUE, method="delong")
+```
+
+We can see that HE4 is significantly better than all other ROC curves based on their AUC. CA125 is the second best. Since HE4 is best but expensive, we would also look at the second best, CA125 for its accessibility.
+
+### Finding the cutoff:
+
+Traditional approach - penalize sensitivity and specificity equally.
+
+Adjusted approach - penalize sensitivity with 1.5 pentalty of specificity.
+
+```{r, include = FALSE}
+h11 = hist(log(data$`HE4`[data$TYPE == 0]))
+h12 = hist(log(data$`HE4`[data$TYPE == 1]))
+h21 = hist(log(data$`HE4`[data$TYPE == 0]))
+h22 = hist(log(data$`CA72-4`[data$TYPE == 1]))
+```
+
+Find the cutoff for HE4
+```{r, echo=FALSE}
+plot(roche4$sensitivities~roche4$specificities, xlab = "HE4 Specificity",
+     ylab = "HE4 Sensitivity",)
+sum_erros51 = (1-roche4$sensitivities) + (1-roche4$specificities)
+roche4$thresholds[which(sum_erros51 == min(sum_erros51))]
+
+sum_erros52 = 1.5*(1-roche4$sensitivities) + (1-roche4$specificities)
+roche4$thresholds[which(sum_erros52 == min(sum_erros52))]
+```
+(break in plot due to break in data)
+
+Find the cutoff for CA125: 
+```{r, echo=FALSE}
+plot(roc125$sensitivities~roc125$specificities, xlab = "CA125 Specificity",
+     ylab = "CA125 Sensitivity",)
+sum_erros41 = (1-roc125$sensitivities) + (1-roc125$specificities)
+roc125$thresholds[which(sum_erros41 == min(sum_erros41))]
+
+sum_erros42 = 1.5*(1-roc125$sensitivities) + (1-roc125$specificities)
+roc125$thresholds[which(sum_erros42 == min(sum_erros42))]
+roc125$sensitivities[201]
+roc125$specificities[201]
+```
+The cutoff for CA19-9: 73, adjusted: 73.
+
+
+### Further:
+
+HE4 in Menopause and non-Menopause populations:
+
+```{r, echo=FALSE}
+m0 = data %>% filter(Menopause == 0)
+m1 = data %>% filter(Menopause == 1)
+roc50 = roc(m0$TYPE, m0$`HE4`, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(roc50, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88, main = "HE4 in non-Menopause")
+roc51 = roc(m1$TYPE, m1$`HE4`, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(roc51, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88, main = "HE4 in Menopause")
+```
+
+CA125 in Menopause and non-Menopause populations.
+
+```{r, echo=FALSE}
+roc40 = roc(m0$TYPE, m0$`CA125`, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(roc40, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88, main = "CA125 in non-Menopause")
+roc41 = roc(m1$TYPE, m1$`CA125`, ci = TRUE, of = "auc", levels = c(0, 1), direction = ">")
+plot(roc41, print.auc=TRUE, auc.polygon=TRUE,
+     grid=c(0.1, 0.2), grid.col=c("green", "red"),
+     max.auc.polygon=TRUE, auc.polygon.col="white",
+     print.thres=TRUE, print.auc.x = 0.88, main = "CA125 in Menopause")
+```
+
